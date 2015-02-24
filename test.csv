@@ -1,0 +1,7 @@
+greg,,vishal,steve,alex
+scott,,vishal,kurt
+kurt,,alex,steve,vishal,scott
+alex,,kurt,brian
+vishal,,greg,scott,kurt
+brian,,alex
+steve,,kurt,greg
