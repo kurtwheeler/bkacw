@@ -6,7 +6,6 @@ import System.Random
 import Data.CSV
 import Text.ParserCombinators.Parsec
 
-
 main = do
   args <- getArgs
   -- Read rawData in
@@ -32,7 +31,9 @@ main = do
               randoms  = take (length people) ranndomGenerator
               validPairs = getValidPairs rawData people
               buckets = buildBuckets validPairs people
-          in  show $ map Set.toList $pickMatches buckets randoms
+              matches = pickMatches buckets randoms
+              partners = findPartners matches people
+          in  show $ zip rawData partners--[[partner] | partner <- partners]
   putStrLn newFile
 
 -- TODO: unit test with this
@@ -43,7 +44,6 @@ testMatrix = [["kurt", "alex", "steve"],
               ["vishal", "greg", "scott"],
               ["brian", "scott", "alex"],
               ["steve", "kurt", "greg"]]
-
 
 getPeople :: [[String]] -> [String]
 getPeople rawData =
@@ -111,6 +111,14 @@ pickMatches buckets randoms =
           matchIndex = truncate $ listLength * (head randoms)
           match = headList !! matchIndex
       in  match:(pickMatches (pruneBuckets match buckets) $ tail randoms)
+
+findPartners :: [Set.Set String] -> [String] -> [String]
+findPartners matches people =
+  map findPartner people
+  where findPartner person =
+          let pair = head $ filter (Set.member person) matches
+          in head $ Set.toList $ Set.difference pair $ Set.singleton person
+
 
 
 -------------------------------------------------------------------------
