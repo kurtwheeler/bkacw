@@ -1,5 +1,6 @@
 import qualified Data.Set as Set
 import qualified Data.List as List
+import qualified Data.Ord as Ord
 import System.Environment
 import System.IO
 import System.Random
@@ -10,40 +11,48 @@ main = do
   args <- getArgs
   -- Read rawData in
   oldFile <- parseFromFile csvFile $ head args
-  --let newFile = case oldFile of
-  --        Left err -> return [show err]
-  --        Right v ->  v
-  --writeFile "out.txt" $ genCsvFile newFile
 
-  -- TODO:
-  -- preprocess oldFile by normalizing the number of columns in each line
-  -- (as in add columns for new people)
-  -- Also remove empty fields?+
-
+  -- Create random number generator
   g <- newStdGen
-
   let ranndomGenerator = (randoms g :: [Double])
+        -- Easy way to output strings instead of object:
+        --Left err -> show err
+
       newFile = case oldFile of
-        Left err -> show err
-        --Right rawData ->  show $ getValidPairs rawData
+        Left err -> return [show err]
         Right rawData ->
           let people = getPeople rawData
               randoms  = take (length people) ranndomGenerator
               validPairs = getValidPairs rawData people
               buckets = buildBuckets validPairs people
               matches = pickMatches buckets randoms
+              findPartner person = head $ filter (Set.member person) matches
+              peopleString  = show people
+              partnerString = show $ map findPartner people
               partners = findPartners matches people
-          in  show $ zip rawData partners--[[partner] | partner <- partners]
-  putStrLn newFile
+              listAdder (l, partner) = l ++ [partner]
+              paddedData = padData rawData
+          in  alphabetize $ map listAdder $ zip paddedData partners
+  writeFile (args !! 1) $ genCsvFile newFile
 
--- TODO: unit test with this
-testMatrix = [["kurt", "alex", "steve"],
-              ["greg", "vishal", "steve"],
-              ["scott", "vishal", "brian"],
-              ["alex", "kurt", "brian"],
-              ["vishal", "greg", "scott"],
-              ["brian", "scott", "alex"],
-              ["steve", "kurt", "greg"]]
+  -- How to output string:
+  --putStrLn newFile
+
+
+alphabetize :: [[String]] -> [[String]]
+alphabetize input =
+  let compareNames left right =
+        (head left) `compare` (head right)
+  in  List.sortBy compareNames input
+
+padData :: [[String]] -> [[String]]
+padData rawData =
+  let lengths = map length rawData
+      maxLength = List.maximum lengths
+      addBlanks row =
+        let deficiency = maxLength - (length row)
+        in  row ++ (take deficiency $ repeat "")
+  in  map addBlanks rawData
 
 getPeople :: [[String]] -> [String]
 getPeople rawData =
@@ -83,6 +92,7 @@ getValidPairs rawData people =
 -- -- Remove bucket for each person
 -- -- Remove every pair either person is in
 
+-- IDK why this typedef breaks things but it does so I leave it out.
 --compareSets :: Set.Set -> Set.Set -> Ordering
 compareSets a b = (Set.size a) `compare` (Set.size b)
 
@@ -103,9 +113,8 @@ pruneBuckets match buckets =
 pickMatches :: [Set.Set (Set.Set String)] -> [Double] -> [Set.Set String]
 pickMatches buckets randoms =
   if [] == filter (\x -> Set.size x > 0) buckets
-    --then ([], ["a","b"])
     then []
-    else    -- Make one function
+    else
       let headList = Set.toList $ head buckets
           listLength = fromIntegral $ length headList
           matchIndex = truncate $ listLength * (head randoms)
@@ -116,12 +125,9 @@ findPartners :: [Set.Set String] -> [String] -> [String]
 findPartners matches people =
   map findPartner people
   where findPartner person =
-          let pair = head $ filter (Set.member person) matches
-          in head $ Set.toList $ Set.difference pair $ Set.singleton person
-
-
-
--------------------------------------------------------------------------
--------------------------------------------------------------------------
-
--- Experiments
+          let filteredMatches = filter (Set.member person) matches
+              pair =
+                if [] == filteredMatches
+                  then Set.fromList [person, ""]
+                  else head filteredMatches
+          in  head $ Set.toList $ Set.difference pair $ Set.singleton person
